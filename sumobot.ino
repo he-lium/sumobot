@@ -19,11 +19,12 @@ const int motorBspeed = 5; // PWM
 
 // IR Sensor
 const int irSensor = 1;
+bool nearBoundary = false;
 
 // Ultrasonic 1
 const int us1trigPin = 2; // Trigger output
 const int us1echoPin = 0; // Echo input interrupt
-unsigned int us1Duration = 0; // time taken (millis) for ultrasonic to read
+unsigned long us1Duration = 0; // time taken (millis) for ultrasonic to read
 unsigned int us1Read = 0; // counter for num of ultrasonic measures
 
 // Ultrasonic 2
@@ -32,6 +33,9 @@ const int us2echoPin = 3;
 
 // Ultrasonic Distance in cm for changing between search and attack
 const int ultrasonicThreshold = 40;
+
+// Time Duration (in millis) of reverse
+const int maxReverseTime = 1500;
 
 // Time in millis to wait after button press before playing
 const int waitingTime = 3000;
@@ -45,6 +49,8 @@ PlayState playState;
 unsigned long startPlayTimestamp;
 // Filter to ensure consistenty of ultrasonic values
 int filter = 0;
+// Timestamp at start of reverse
+unsigned long reverseTimestamp;
 
 void setup() {
     // Set up serial comm
@@ -52,7 +58,7 @@ void setup() {
 
     // Set up IR sensor
     pinMode(irSensor, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(irSensor), irInterrupt, RISING);
+    // attachInterrupt(digitalPinToInterrupt(irSensor), irInterrupt, RISING);
 
     // Init motors
     pinMode(motorApin1, OUTPUT);
@@ -125,6 +131,13 @@ void decidePlay() {
         ultrasonicTimeSinceLastRead = millis();
     }
 
+    // near boundary: reverse
+    if (nearBoundary && playState != reverse) {
+        Serial.println("Near boundary; reverse");
+        playState = reverse;
+        reverseTimestamp = millis();
+    }
+
     switch(playState) {
     case search:
         runMotors(1, 0, 140, 140);
@@ -133,6 +146,8 @@ void decidePlay() {
             currentUs1Read = us1Read;
             // calculate distance from ultrasonic
             int us1distance = us1Duration / 58;
+            Serial.print("search ");
+            Serial.println(us1distance);
 
             if (us1distance < ultrasonicThreshold) {
                 filter++;
@@ -154,7 +169,9 @@ void decidePlay() {
             currentUs1Read = us1Read;
             // calculate distance from ultrasonic
             int us1distance = us1Duration / 58;
-            Serial.print("");
+            // Serial.print("");
+            Serial.print("attack ");
+            Serial.println(us1distance);
             
             if (us1distance > ultrasonicThreshold) {
                 // Distance starting to be greater than threshold
@@ -171,7 +188,16 @@ void decidePlay() {
         }
         break;
     case reverse:
-        // TODO go back for period of time
+        // go back for period of time
+        runMotors(1, 1, 140, 140);
+        
+        // if robot has reversed for enough time
+        if (millis() - reverseTimestamp >= maxReverseTime) {
+            Serial.println("Stop reversing; search");
+            filter = 0;
+            playState = search;
+        }
+        
         break;
     }
 }
@@ -217,7 +243,7 @@ void runMotors(int directionA, int directionB, int speedA, int speedB)
 /// LINE SENSOR
 
 void irInterrupt() {
-    Serial.println("LINE SENSOR INTERRUPT");
+    nearBoundary = (digitalRead(irSensor) == 1);
 }
 
 // ********************************************
