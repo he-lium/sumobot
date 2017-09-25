@@ -1,10 +1,10 @@
 // Robot code for Team 30: MDM
 // Sumobot Competition 2017
 
-// LED
+// LED ouput
 const int internalLED = 17;
 
-// Button
+// Push button input
 const int toggleButton = 10;
 
 // Motor A
@@ -17,32 +17,42 @@ const int motorBpin1 = 6;
 const int motorBpin2 = 7;  // Reverse direction
 const int motorBspeed = 5; // PWM
 
+// IR Sensor
+const int irSensor = 1;
+
 // Ultrasonic 1
-const int trigPin = 2;
-const int echoPin = 0;
+const int us1trigPin = 2; // Trigger output
+const int us1echoPin = 0; // Echo input interrupt
 unsigned int us1Duration = 0; // time taken (millis) for ultrasonic to read
 unsigned int us1Read = 0; // counter for num of ultrasonic measures
 
 // Ultrasonic 2
-const int trigPin2 = 15;
-const int echoPin2 = 3;
+const int us2trigPin = 15;
+const int us2echoPin = 3;
 
 // Ultrasonic Distance in cm for changing between search and attack
-int ultrasonicThreshold = 40;
+const int ultrasonicThreshold = 40;
 
+// Time in millis to wait after button press before playing
 const int waitingTime = 3000;
 
-enum State { off, waiting, playing };
-enum PlayState { search, attack, reverse };
 // state machine
+enum State { off, waiting, playing };
 State state;
+enum PlayState { search, attack, reverse };
 PlayState playState;
+// Timestamp to record when buttons were pressed
 unsigned long startPlayTimestamp;
+// Filter to ensure consistenty of ultrasonic values
 int filter = 0;
 
 void setup() {
     // Set up serial comm
     Serial.begin(9600);
+
+    // Set up IR sensor
+    pinMode(irSensor, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(irSensor), irInterrupt, RISING);
 
     // Init motors
     pinMode(motorApin1, OUTPUT);
@@ -52,14 +62,14 @@ void setup() {
     pinMode(motorBpin2, OUTPUT);
     pinMode(motorBspeed, OUTPUT);
 
-    // Set up Ultrasonic
-    pinMode(trigPin, OUTPUT);
-    pinMode(echoPin, INPUT);
-    digitalWrite(trigPin, LOW);
-    // Ultrasonic 1 Interrupt
-    attachInterrupt(digitalPinToInterrupt(echoPin), ultrasonic1_echo, CHANGE);
+    // Set up Ultrasonic 1
+    pinMode(us1trigPin, OUTPUT);
+    pinMode(us1echoPin, INPUT);
+    digitalWrite(us1trigPin, LOW);
+    // Ultrasonic 1 Interrupt : call ultrasonic1_echo when echo pin changes
+    attachInterrupt(digitalPinToInterrupt(us1echoPin), ultrasonic1_echo, CHANGE);
 
-    // Set up state
+    // Set up initial state: waiting for button press
     state = off;
 
     delay(500);
@@ -111,7 +121,7 @@ void decidePlay() {
     // ultrasonic trigger
     if (millis() - ultrasonicTimeSinceLastRead > 7) {
         // start new ultrasonic read
-        trigUltrasonic(trigPin);
+        trigUltrasonic(us1trigPin);
         ultrasonicTimeSinceLastRead = millis();
     }
 
@@ -122,13 +132,11 @@ void decidePlay() {
             // new update from us1
             currentUs1Read = us1Read;
             // calculate distance from ultrasonic
-            int distance = us1Duration / 58;
-            Serial.print("search: ");
-            Serial.println(distance);
+            int us1distance = us1Duration / 58;
 
-            if (distance < ultrasonicThreshold) {
+            if (us1distance < ultrasonicThreshold) {
                 filter++;
-                if (filter >= 10) { // if distance is consistently above threshold
+                if (filter >= 10) { // if us1distance is consistently above threshold
                     // Change state: attack
                     filter = 0;
                     playState = attack;
@@ -145,11 +153,10 @@ void decidePlay() {
             // new update from us1
             currentUs1Read = us1Read;
             // calculate distance from ultrasonic
-            int distance = us1Duration / 58;
-            Serial.print("attack: ");
-            Serial.println(distance);
+            int us1distance = us1Duration / 58;
+            Serial.print("");
             
-            if (distance > ultrasonicThreshold) {
+            if (us1distance > ultrasonicThreshold) {
                 // Distance starting to be greater than threshold
                 filter++;
                 if (filter >= 10) { // if distance is consistently above threshold
@@ -169,9 +176,16 @@ void decidePlay() {
     }
 }
 
+////////////////////////////////////////////
+//// PUSH BUTTON
+
 bool readToggleButton() {
     return digitalRead(toggleButton) == HIGH;
 }
+
+
+///////////////////////////////////////////
+/// MOTORS
 
 // Set the motors to a particular direction and speed
 // directions: 1 forward, 0 backward
@@ -199,23 +213,15 @@ void runMotors(int directionA, int directionB, int speedA, int speedB)
     analogWrite(motorBspeed, speedB);
 }
 
+///////////////////////////////////////////////
+/// LINE SENSOR
+
+void irInterrupt() {
+    Serial.println("LINE SENSOR INTERRUPT");
+}
+
 // ********************************************
 // Ultrasonic Sensor:
-
-// WARNING: WILL BLOCK
-// reads distance of ultrasonic
-int measureUltrasonic() {
-    // sensor is triggered by HIGH pulse of 10 or more seconds
-    // give short LOW pulse beforehand
-    digitalWrite(trigPin, LOW);
-    delayMicroseconds(5);
-    digitalWrite(trigPin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPin, LOW);
-    
-    // read sig from sensor, convert into dist
-    return pulseIn(echoPin, HIGH) / 58;
-}
 
 // Sends trigger to activate ultrasonic
 int trigUltrasonic(int trigger) {
@@ -231,7 +237,7 @@ int trigUltrasonic(int trigger) {
 // interrupt call when ultrasonic1 starts echo
 void ultrasonic1_echo() {
     static volatile unsigned int startTime;
-    switch (digitalRead(echoPin)) {
+    switch (digitalRead(us1echoPin)) {
     case HIGH: // start of echo pulse
         startTime = micros();
         break;
