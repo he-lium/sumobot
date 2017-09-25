@@ -10,12 +10,12 @@ const int toggleButton = 10;
 // Motor A
 const int motorApin1 = 9;
 const int motorApin2 = 8; // Reverse direction
-const int motorAspeed = 4; // PWM
+const int motorAspeed = 4; // PWM ENA
 
 // Motor B
 const int motorBpin1 = 6;
 const int motorBpin2 = 7;  // Reverse direction
-const int motorBspeed = 5; // PWM
+const int motorBspeed = 5; // PWM ENB
 
 // IR Sensor
 const int irSensor = 1;
@@ -30,6 +30,8 @@ unsigned int us1Read = 0; // counter for num of ultrasonic measures
 // Ultrasonic 2
 const int us2trigPin = 15;
 const int us2echoPin = 3;
+unsigned int us2Duration = 0; // time taken (millis) for ultrasonic to read
+unsigned int us2Read = 0; // counter for num of ultrasonic measures
 
 // Ultrasonic Distance in cm for changing between search and attack
 const int ultrasonicThreshold = 40;
@@ -77,6 +79,13 @@ void setup() {
     digitalWrite(us1trigPin, LOW);
     // Ultrasonic 1 Interrupt : call ultrasonic1_echo when echo pin changes
     attachInterrupt(digitalPinToInterrupt(us1echoPin), ultrasonic1_echo, CHANGE);
+
+    // Set up Ultrasonic 2
+    pinMode(us2trigPin, OUTPUT);
+    pinMode(us2echoPin, INPUT);
+    digitalWrite(us2trigPin, LOW);
+    // TODO Ultrasonic 2 Interrupt
+    attachInterrupt(digitalPinToInterrupt(us2echoPin), ultrasonic2_echo, CHANGE);
 
     // Set up initial state: waiting for button press
     state = off;
@@ -131,6 +140,7 @@ void decidePlay() {
     if (millis() - ultrasonicTimeSinceLastRead > 7) {
         // start new ultrasonic read
         trigUltrasonic(us1trigPin);
+        trigUltrasonic(us2trigPin);
         ultrasonicTimeSinceLastRead = millis();
     }
 
@@ -275,5 +285,20 @@ void ultrasonic1_echo() {
         // Only mark as updated if valid distance
         if (us1Duration < maxValidUltrasonic * 58) us1Read++;
         break;
+    }
+}
+
+// interrupt call when ultrasonic2 starts echo
+void ultrasonic2_echo() {
+    static volatile unsigned int startTime;
+    Serial.println("TRIGGER TRIGGER");
+    switch (digitalRead(us2echoPin)) {
+    case HIGH: // start of echo pulse
+        startTime = micros();
+        break;
+    case LOW: // end of echo pulse; record duration
+        us2Duration = micros() - startTime;
+        if (us2Duration < maxValidUltrasonic * 58) us2Read++;
+        Serial.println(us2Duration / 58);
     }
 }
