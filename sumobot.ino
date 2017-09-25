@@ -24,7 +24,7 @@ bool nearBoundary = false;
 // Ultrasonic 1
 const int us1trigPin = 2; // Trigger output
 const int us1echoPin = 0; // Echo input interrupt
-unsigned long us1Duration = 0; // time taken (millis) for ultrasonic to read
+unsigned int us1Duration = 0; // time taken (millis) for ultrasonic to read
 unsigned int us1Read = 0; // counter for num of ultrasonic measures
 
 // Ultrasonic 2
@@ -33,6 +33,9 @@ const int us2echoPin = 3;
 
 // Ultrasonic Distance in cm for changing between search and attack
 const int ultrasonicThreshold = 40;
+
+// Maximum Valid Ultrasonic Distance
+const int maxValidUltrasonic = 900;
 
 // Time Duration (in millis) of reverse
 const int maxReverseTime = 1500;
@@ -269,7 +272,8 @@ void ultrasonic1_echo() {
         break;
     case LOW: // end of echo pulse; record duration
         us1Duration = micros() - startTime;
-        us1Read++;
+        // Only mark as updated if valid distance
+        if (us1Duration < maxValidUltrasonic * 58) us1Read++;
         break;
     }
 }
