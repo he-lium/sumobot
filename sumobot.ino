@@ -61,7 +61,7 @@ void setup() {
 
     // Set up IR sensor
     pinMode(irSensor, INPUT_PULLUP);
-    // attachInterrupt(digitalPinToInterrupt(irSensor), irInterrupt, RISING);
+    attachInterrupt(digitalPinToInterrupt(irSensor), irInterrupt, RISING);
 
     // Init motors
     pinMode(motorApin1, OUTPUT);
@@ -149,8 +149,8 @@ void decidePlay() {
             currentUs1Read = us1Read;
             // calculate distance from ultrasonic
             int us1distance = us1Duration / 58;
-            Serial.print("search ");
-            Serial.println(us1distance);
+            // Serial.print("search ");
+            // Serial.println(us1distance);
 
             if (us1distance < ultrasonicThreshold) {
                 filter++;
@@ -172,9 +172,9 @@ void decidePlay() {
             currentUs1Read = us1Read;
             // calculate distance from ultrasonic
             int us1distance = us1Duration / 58;
-            // Serial.print("");
-            Serial.print("attack ");
-            Serial.println(us1distance);
+            Serial.print("");
+            // Serial.print("attack ");
+            // Serial.println(us1distance);
             
             if (us1distance > ultrasonicThreshold) {
                 // Distance starting to be greater than threshold
