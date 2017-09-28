@@ -1,25 +1,14 @@
 // Robot code for Team 30: MDM
 // Sumobot Competition 2017
 
+#include "motor.h"
+#include "ir.h"
+
 // LED ouput
 const int internalLED = 17;
 
 // Push button input
 const int toggleButton = 10;
-
-// Motor A
-const int motorApin1 = 9;
-const int motorApin2 = 8; // Reverse direction
-const int motorAspeed = 4; // PWM ENA
-
-// Motor B
-const int motorBpin1 = 6;
-const int motorBpin2 = 7;  // Reverse direction
-const int motorBspeed = 5; // PWM ENB
-
-// IR Sensor
-const int irSensor = 1;
-bool nearBoundary = false;
 
 // Ultrasonic 1
 const int us1trigPin = 2; // Trigger output
@@ -61,17 +50,8 @@ void setup() {
     // Set up serial comm
     Serial.begin(9600);
 
-    // Set up IR sensor
-    pinMode(irSensor, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(irSensor), irInterrupt, RISING);
-
-    // Init motors
-    pinMode(motorApin1, OUTPUT);
-    pinMode(motorApin2, OUTPUT);
-    pinMode(motorAspeed, OUTPUT);
-    pinMode(motorBpin1, OUTPUT);
-    pinMode(motorBpin2, OUTPUT);
-    pinMode(motorBspeed, OUTPUT);
+    ir::initIRSensor();
+    motor::initMotors();
 
     // Set up Ultrasonic 1
     pinMode(us1trigPin, OUTPUT);
@@ -117,7 +97,7 @@ void loop() {
 
         // Turn off if button pressed
         if (readToggleButton()) {
-            runMotors(1, 1, 0, 0);
+            motor::runMotors(1, 1, 0, 0);
             state = off;
             Serial.println("Stopping game...");
             delay(1000);
@@ -140,12 +120,11 @@ void decidePlay() {
     if (millis() - ultrasonicTimeSinceLastRead > 7) {
         // start new ultrasonic read
         trigUltrasonic(us1trigPin);
-        trigUltrasonic(us2trigPin);
         ultrasonicTimeSinceLastRead = millis();
     }
 
     // near boundary: reverse
-    if (nearBoundary && playState != reverse) {
+    if (ir::nearBoundary && playState != reverse) {
         Serial.println("Near boundary; reverse");
         playState = reverse;
         reverseTimestamp = millis();
@@ -153,7 +132,7 @@ void decidePlay() {
 
     switch(playState) {
     case search:
-        runMotors(1, 0, 140, 140);
+        motor::runMotors(1, 0, 140, 140);
         if (currentUs1Read != us1Read) {
             // new update from us1
             currentUs1Read = us1Read;
@@ -176,7 +155,7 @@ void decidePlay() {
         }
         break;
     case attack:
-        runMotors(1, 1, 140, 140);
+        motor::runMotors(1, 1, 140, 140);
         if (currentUs1Read != us1Read) {
             // new update from us1
             currentUs1Read = us1Read;
@@ -202,7 +181,7 @@ void decidePlay() {
         break;
     case reverse:
         // go back for period of time
-        runMotors(1, 1, 140, 140);
+        motor::runMotors(1, 1, 140, 140);
         
         // if robot has reversed for enough time
         if (millis() - reverseTimestamp >= maxReverseTime) {
@@ -220,43 +199,6 @@ void decidePlay() {
 
 bool readToggleButton() {
     return digitalRead(toggleButton) == HIGH;
-}
-
-
-///////////////////////////////////////////
-/// MOTORS
-
-// Set the motors to a particular direction and speed
-// directions: 1 forward, 0 backward
-// speed: 0
-void runMotors(int directionA, int directionB, int speedA, int speedB)
-{
-    // Motor A
-    if (directionA == 1) { // forward
-        digitalWrite(motorApin1, HIGH);
-        digitalWrite(motorApin2, LOW);
-    } else { // backward
-        digitalWrite(motorApin1, LOW);
-        digitalWrite(motorApin2, HIGH);
-    }
-    analogWrite(motorAspeed, speedA);
-
-    // Motor B
-    if (directionB == 1) { // forward
-        digitalWrite(motorBpin1, HIGH);
-        digitalWrite(motorBpin2, LOW);
-    } else { // backward
-        digitalWrite(motorBpin1, LOW);
-        digitalWrite(motorBpin2, HIGH);
-    } 
-    analogWrite(motorBspeed, speedB);
-}
-
-///////////////////////////////////////////////
-/// LINE SENSOR
-
-void irInterrupt() {
-    nearBoundary = (digitalRead(irSensor) == 1);
 }
 
 // ********************************************
@@ -298,7 +240,9 @@ void ultrasonic2_echo() {
         break;
     case LOW: // end of echo pulse; record duration
         us2Duration = micros() - startTime;
-        if (us2Duration < maxValidUltrasonic * 58) us2Read++;
-        Serial.println(us2Duration / 58);
+        if (us2Duration < maxValidUltrasonic * 58) {
+            us2Read++;
+            Serial.println(us2Duration / 58);
+        }
     }
 }
