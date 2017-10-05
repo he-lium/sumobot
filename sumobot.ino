@@ -3,6 +3,7 @@
 
 #include "motor.h"
 #include "ir.h"
+#include "filter.h"
 
 // LED ouput
 const int internalLED = 17;
@@ -13,13 +14,13 @@ const int toggleButton = 10;
 // Ultrasonic 1
 const int us1trigPin = 2; // Trigger output
 const int us1echoPin = 0; // Echo input interrupt
-unsigned int us1Duration = 0; // time taken (millis) for ultrasonic to read
+unsigned int us1Distance = 0; // distance reading from us1
 unsigned int us1Read = 0; // counter for num of ultrasonic measures
 
 // Ultrasonic 2
 const int us2trigPin = 18;
 const int us2echoPin = 3;
-unsigned int us2Duration = 0; // time taken (millis) for ultrasonic to read
+unsigned int us2Distance = 0; // distance reading from us2
 unsigned int us2Read = 0; // counter for num of ultrasonic measures
 
 // Ultrasonic Distance in cm for changing between search and attack
@@ -41,10 +42,12 @@ enum PlayState { search, attack, reverse };
 PlayState playState;
 // Timestamp to record when buttons were pressed
 unsigned long startPlayTimestamp;
-// Filter to ensure consistenty of ultrasonic values
-int filter = 0;
+
 // Timestamp at start of reverse
 unsigned long reverseTimestamp;
+
+// Filter object for ultrasonic consistency
+Filter *usFilter;
 
 void setup() {
     // Set up serial comm
@@ -70,7 +73,11 @@ void setup() {
     // Set up initial state: waiting for button press
     state = off;
 
+    // Set up filter
+    usFilter = new Filter(2);
+
     delay(500);
+    Serial.println("Sumobot MDM v0.1");
 }
 
 void loop() {
@@ -84,15 +91,7 @@ void loop() {
             Serial.println(digitalPinToInterrupt(us2echoPin));
             Serial.println("Waiting...");
         }
-
-        // TODO REMOVE CODE: THIS IS JUST A TEST FOR ULTRASONIC 2
-        // static unsigned long stamp = 0;
-        // if (millis() - stamp > 2000) {
-        //     Serial.print("triggering us2... ");
-        //     trigUltrasonic(us2trigPin);
-        //     stamp = millis();
-        //     Serial.println(stamp);
-        // }
+        
         break;
     case waiting:
         // Wait 3 seconds
@@ -100,6 +99,7 @@ void loop() {
             state = playing;
             playState = search;
             digitalWrite(internalLED, LOW);
+            usFilter->reset();
             Serial.println("Playing!");
         }
         break;
@@ -121,9 +121,9 @@ void loop() {
 
 void printUs() {
     Serial.print("Ultrasonic 1: ");
-    Serial.println(us1Duration/58);
+    Serial.println(us1Distance);
     Serial.print("Ultrasonic 2: ");
-    Serial.println(us2Duration/58);
+    Serial.println(us2Distance);
 }
 
 // decide what to do when playing
@@ -141,6 +141,15 @@ void decidePlay() {
         ultrasonicTimeSinceLastRead = millis();
     }
 
+    // receiving ultrasonic results
+    if (currentUs1Read != us1Read) { // us1 has changed
+        if (us1Distance <= ultrasonicThreshold) // NEAR
+            usFilter->registerNear(1);
+        else // FAR
+            usFilter->registerFar(1);
+        currentUs1Read = us1Read;
+    }
+
     // near boundary: reverse
     if (ir::nearBoundary && playState != reverse) {
         Serial.println("Near boundary; reverse");
@@ -148,56 +157,19 @@ void decidePlay() {
         reverseTimestamp = millis();
     }
 
-    // DEBUG
-    if (currentUs1Read != us1Read) printUs();
-
     switch(playState) {
     case search:
         motor::runMotors(1, 0, 140, 140);
-        if (currentUs1Read != us1Read) {
-            // new update from us1
-            currentUs1Read = us1Read;
-            // calculate distance from ultrasonic
-            int us1distance = us1Duration / 58;
-            // Serial.print("search ");
-            // Serial.println(us1distance);
-
-            if (us1distance < ultrasonicThreshold) {
-                filter++;
-                if (filter >= 10) { // if us1distance is consistently above threshold
-                    // Change state: attack
-                    filter = 0;
-                    playState = attack;
-                    Serial.println("Distance below threshold; attack");
-                }
-            } else if (filter > 0) {
-                filter--;
-            }
+        if (usFilter->isNear(1)) {
+            playState = attack;
+            Serial.println("Distance below threshold; attack");
         }
         break;
-    case attack:
+        case attack:
         motor::runMotors(1, 1, 140, 140);
-        if (currentUs1Read != us1Read) {
-            // new update from us1
-            currentUs1Read = us1Read;
-            // calculate distance from ultrasonic
-            int us1distance = us1Duration / 58;
-            Serial.print("");
-            // Serial.print("attack ");
-            // Serial.println(us1distance);
-            
-            if (us1distance > ultrasonicThreshold) {
-                // Distance starting to be greater than threshold
-                filter++;
-                if (filter >= 10) { // if distance is consistently above threshold
-                    // Change state: search
-                    filter = 0;
-                    playState = search;
-                    Serial.println("Distance above threshold; search");
-                }
-            } else if (filter > 0) {
-                filter--;
-            }
+        if (!usFilter->isNear(1)) { // far away
+            playState = search;
+            Serial.println("Distance above threshold; search");
         }
         break;
     case reverse:
@@ -207,7 +179,6 @@ void decidePlay() {
         // if robot has reversed for enough time
         if (millis() - reverseTimestamp >= maxReverseTime) {
             Serial.println("Stop reversing; search");
-            filter = 0;
             playState = search;
         }
         
@@ -245,9 +216,9 @@ void ultrasonic1_echo() {
         startTime = micros();
         break;
     case LOW: // end of echo pulse; record duration
-        us1Duration = micros() - startTime;
+        us1Distance = (micros() - startTime) / 58;
         // Only mark as updated if valid distance
-        if (us1Duration < maxValidUltrasonic * 58) us1Read++;
+        if (us1Distance < maxValidUltrasonic) us1Read++;
         break;
     }
 }
@@ -261,8 +232,8 @@ void ultrasonic2_echo() {
         startTime2 = micros();
         break;
     case LOW: // end of echo pulse; record duration
-        us2Duration = micros() - startTime2;
-        if (us2Duration < maxValidUltrasonic * 58) us2Read++;
+        us2Distance = (micros() - startTime2) / 58;
+        if (us2Distance < maxValidUltrasonic) us2Read++;
         break;
     }
 }
