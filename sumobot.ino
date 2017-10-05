@@ -129,7 +129,7 @@ void printUs() {
 // decide what to do when playing
 void decidePlay() {
     // ultrasonic update counter
-    static unsigned long currentUs1Read = 0;
+    static unsigned long currentUs1Read = 0, currentUs2Read = 0;
     // time (millis) since last ultrasonic read
     static unsigned long ultrasonicTimeSinceLastRead = 0;
 
@@ -148,6 +148,13 @@ void decidePlay() {
         else // FAR
             usFilter->registerFar(1);
         currentUs1Read = us1Read;
+    }
+    if (currentUs2Read != us2Read) {
+        if (us2Distance <= ultrasonicThreshold) // NEAR
+            usFilter->registerNear(2);
+        else
+            usFilter->registerFar(2);
+        currentUs2Read = us2Read;
     }
 
     // near boundary: reverse
