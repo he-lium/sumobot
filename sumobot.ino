@@ -23,6 +23,10 @@ const int us2echoPin = 3;
 unsigned int us2Distance = 0; // distance reading from us2
 unsigned int us2Read = 0; // counter for num of ultrasonic measures
 
+// Used for alternating triggers
+bool alternateUSTrigger = false;
+bool usingUltrasonic = false; // whether or not ultrasonic is waiting for echo
+
 // Ultrasonic Distance in cm for changing between search and attack
 const int ultrasonicThreshold = 40;
 
@@ -38,7 +42,7 @@ const int waitingTime = 3000;
 // state machine
 enum State { off, waiting, playing };
 State state;
-enum PlayState { search, attack, reverse };
+enum PlayState { search, attack, reverse, detectedL, detectedR };
 PlayState playState;
 // Timestamp to record when buttons were pressed
 unsigned long startPlayTimestamp;
@@ -104,7 +108,6 @@ void loop() {
         }
         break;
     case playing:
-
         // Turn off if button pressed
         if (readToggleButton()) {
             motor::runMotors(1, 1, 0, 0);
@@ -119,11 +122,25 @@ void loop() {
     }
 }
 
-void printUs() {
-    Serial.print("Ultrasonic 1: ");
-    Serial.println(us1Distance);
-    Serial.print("Ultrasonic 2: ");
-    Serial.println(us2Distance);
+// void printUs() {
+//     Serial.print("Ultrasonic 1: ");
+//     Serial.println(us1Distance);
+//     Serial.print("Ultrasonic 2: ");
+//     Serial.println(us2Distance);
+// }
+
+void changeState(PlayState s) {
+    if (playState != s) {
+        // state is changed; print state
+        playState = s;
+        switch (playState) {
+        case search: Serial.println("Search"); break;
+        case attack: Serial.println("Attack"); digitalWrite(internalLED, HIGH); break;
+        case reverse: Serial.println("Reverse"); break;
+        case detectedL: Serial.println("Detected on left"); break;
+        case detectedR: Serial.println("Detected on right"); break;
+        }
+    }
 }
 
 // decide what to do when playing
@@ -135,9 +152,13 @@ void decidePlay() {
 
     // ultrasonic trigger
     if (millis() - ultrasonicTimeSinceLastRead > 7) {
+        // Time taken is too long; override
+        usingUltrasonic = false;
+        alternateUSTrigger = !alternateUSTrigger;
+    }
+    if (millis() - ultrasonicTimeSinceLastRead > 4 && !usingUltrasonic) {
         // start new ultrasonic read
-        trigUltrasonic(us1trigPin);
-        trigUltrasonic(us2trigPin);
+        trigUltrasonic(alternateUSTrigger ? us1trigPin : us2trigPin);
         ultrasonicTimeSinceLastRead = millis();
     }
 
@@ -163,33 +184,40 @@ void decidePlay() {
         playState = reverse;
         reverseTimestamp = millis();
     }
-
+    
+    // Decide motor action
     switch(playState) {
     case search:
-        motor::runMotors(1, 0, 140, 140);
-        if (usFilter->isNear(1)) {
-            playState = attack;
-            Serial.println("Distance below threshold; attack");
-        }
+    case detectedL:
+        motor::anticlockwise();
         break;
-        case attack:
-        motor::runMotors(1, 1, 140, 140);
-        if (!usFilter->isNear(1)) { // far away
-            playState = search;
-            Serial.println("Distance above threshold; search");
-        }
+    case detectedR:
+        motor::clockwise();
+        break;
+    case attack:
+        Serial.print("");
+        motor::forwards();
         break;
     case reverse:
         // go back for period of time
-        motor::runMotors(1, 1, 140, 140);
+        motor::reverse();
         
         // if robot has reversed for enough time
         if (millis() - reverseTimestamp >= maxReverseTime) {
-            Serial.println("Stop reversing; search");
+            Serial.println("stop reverse");
             playState = search;
         }
-        
         break;
+    }
+
+    // Decide new state
+    if (playState != reverse) {
+        bool leftNear = usFilter->isNear(1);
+        bool rightNear = usFilter->isNear(2);
+        if (leftNear && rightNear) changeState(attack);
+        else if (leftNear) changeState(detectedL);
+        else if (rightNear) changeState(detectedR);
+        else changeState(search);
     }
 }
 
@@ -221,11 +249,14 @@ void ultrasonic1_echo() {
     switch (digitalRead(us1echoPin)) {
     case HIGH: // start of echo pulse
         startTime = micros();
+        usingUltrasonic = true;
         break;
     case LOW: // end of echo pulse; record duration
         us1Distance = (micros() - startTime) / 58;
+        usingUltrasonic = false;
         // Only mark as updated if valid distance
         if (us1Distance < maxValidUltrasonic) us1Read++;
+        alternateUSTrigger = !alternateUSTrigger;
         break;
     }
 }
@@ -237,9 +268,12 @@ void ultrasonic2_echo() {
     switch (digitalRead(us2echoPin)) {
     case HIGH: // start of echo pulse
         startTime2 = micros();
+        usingUltrasonic = true;
         break;
     case LOW: // end of echo pulse; record duration
         us2Distance = (micros() - startTime2) / 58;
+        usingUltrasonic = false;
+        alternateUSTrigger = !alternateUSTrigger;
         if (us2Distance < maxValidUltrasonic) us2Read++;
         break;
     }

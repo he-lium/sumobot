@@ -49,6 +49,12 @@ namespace motor {
         } 
         analogWrite(motorBspeed, speedB);
     }
+
+    // Running motor abstractions
+    void forwards() { runMotors(1, 1, 140, 140); }
+    void reverse() { runMotors(0, 0, 140, 140); }
+    void anticlockwise() { runMotors(0, 1, 140, 140); }
+    void clockwise() { runMotors(1, 0, 140, 140); }
 }
 
 #endif

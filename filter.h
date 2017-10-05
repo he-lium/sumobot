@@ -1,4 +1,6 @@
 // Class definition for filter
+#ifndef FILTER_H
+#define FILTER_H
 
 class Filter {
 public:
@@ -28,8 +30,8 @@ void Filter::registerFar(int numDim) {
     int d = numDim - 1;
     if (_closeness[d] > 0) {
         --_closeness[d];
-        Serial.print(" ");
-        Serial.print(_closeness[d]);
+        // Serial.print(" ");
+        // Serial.print(_closeness[d]);
         if (_closeness[d] == 0) _isNear[d] = false;
     }
 }
@@ -39,8 +41,8 @@ void Filter::registerNear(int numDim) {
     int d = numDim - 1;
     if (_closeness[d] < filterThreshold) {
         ++_closeness[d];
-        Serial.print(" ");
-        Serial.print(_closeness[d]);
+        // Serial.print(" ");
+        // Serial.print(_closeness[d]);
         if (_closeness[d] == filterThreshold) _isNear[d] = true;
     }
 }
@@ -58,3 +60,5 @@ Filter::~Filter() {
     delete [] _isNear;
     delete [] _closeness;
 }
+
+#endif
