@@ -11,7 +11,7 @@ namespace motor {
 
     // Motor B
     const int motorBpin1 = 6;
-    const int motorBpin2 = 7;  // Reverse direction
+    const int motorBpin2 = 14;  // Reverse direction
     const int motorBspeed = 5; // PWM ENB
 
     // initialise motors during setup

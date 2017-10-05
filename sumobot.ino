@@ -17,7 +17,7 @@ unsigned int us1Duration = 0; // time taken (millis) for ultrasonic to read
 unsigned int us1Read = 0; // counter for num of ultrasonic measures
 
 // Ultrasonic 2
-const int us2trigPin = 15;
+const int us2trigPin = 18;
 const int us2echoPin = 3;
 unsigned int us2Duration = 0; // time taken (millis) for ultrasonic to read
 unsigned int us2Read = 0; // counter for num of ultrasonic measures
@@ -64,7 +64,7 @@ void setup() {
     pinMode(us2trigPin, OUTPUT);
     pinMode(us2echoPin, INPUT);
     digitalWrite(us2trigPin, LOW);
-    // TODO Ultrasonic 2 Interrupt
+    // Ultrasonic 2 Interrupt TODO: FIX
     attachInterrupt(digitalPinToInterrupt(us2echoPin), ultrasonic2_echo, CHANGE);
 
     // Set up initial state: waiting for button press
@@ -81,8 +81,18 @@ void loop() {
             state = waiting;
             startPlayTimestamp = millis();
             digitalWrite(internalLED, HIGH);
+            Serial.println(digitalPinToInterrupt(us2echoPin));
             Serial.println("Waiting...");
         }
+
+        // TODO REMOVE CODE: THIS IS JUST A TEST FOR ULTRASONIC 2
+        // static unsigned long stamp = 0;
+        // if (millis() - stamp > 2000) {
+        //     Serial.print("triggering us2... ");
+        //     trigUltrasonic(us2trigPin);
+        //     stamp = millis();
+        //     Serial.println(stamp);
+        // }
         break;
     case waiting:
         // Wait 3 seconds
@@ -109,6 +119,13 @@ void loop() {
     }
 }
 
+void printUs() {
+    Serial.print("Ultrasonic 1: ");
+    Serial.println(us1Duration/58);
+    Serial.print("Ultrasonic 2: ");
+    Serial.println(us2Duration/58);
+}
+
 // decide what to do when playing
 void decidePlay() {
     // ultrasonic update counter
@@ -120,6 +137,7 @@ void decidePlay() {
     if (millis() - ultrasonicTimeSinceLastRead > 7) {
         // start new ultrasonic read
         trigUltrasonic(us1trigPin);
+        trigUltrasonic(us2trigPin);
         ultrasonicTimeSinceLastRead = millis();
     }
 
@@ -129,6 +147,9 @@ void decidePlay() {
         playState = reverse;
         reverseTimestamp = millis();
     }
+
+    // DEBUG
+    if (currentUs1Read != us1Read) printUs();
 
     switch(playState) {
     case search:
@@ -217,7 +238,8 @@ int trigUltrasonic(int trigger) {
 
 // interrupt call when ultrasonic1 starts echo
 void ultrasonic1_echo() {
-    static volatile unsigned int startTime;
+    static volatile unsigned long startTime;
+    // Serial.println("TRIGGER 1");
     switch (digitalRead(us1echoPin)) {
     case HIGH: // start of echo pulse
         startTime = micros();
@@ -232,17 +254,15 @@ void ultrasonic1_echo() {
 
 // interrupt call when ultrasonic2 starts echo
 void ultrasonic2_echo() {
-    static volatile unsigned int startTime;
-    Serial.println("TRIGGER TRIGGER");
+    static volatile unsigned long startTime2;
+    // Serial.println("TRIGGER 2");
     switch (digitalRead(us2echoPin)) {
     case HIGH: // start of echo pulse
-        startTime = micros();
+        startTime2 = micros();
         break;
     case LOW: // end of echo pulse; record duration
-        us2Duration = micros() - startTime;
-        if (us2Duration < maxValidUltrasonic * 58) {
-            us2Read++;
-            Serial.println(us2Duration / 58);
-        }
+        us2Duration = micros() - startTime2;
+        if (us2Duration < maxValidUltrasonic * 58) us2Read++;
+        break;
     }
 }
