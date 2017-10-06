@@ -84,6 +84,23 @@ void setup() {
     Serial.println("Sumobot MDM v0.1");
 }
 
+// #define DEBUG
+#ifdef DEBUG
+
+void loop() {
+    // calibrate motors
+    motor::forwards();
+    delay(4000);
+    motor::reverse();
+    delay(4000);
+    motor::anticlockwise();
+    delay(4000);
+    motor::clockwise();
+    delay(4000);
+}
+
+#else
+
 void loop() {
     switch (state) {
     case off:
@@ -116,18 +133,22 @@ void loop() {
             delay(1000);
             break;
         }
+        // TODO REMOVE DEBUG
+        if (millis() % 1000 == 0) printUs();
 
         decidePlay();
         break; // from outer switch   
     }
 }
 
-// void printUs() {
-//     Serial.print("Ultrasonic 1: ");
-//     Serial.println(us1Distance);
-//     Serial.print("Ultrasonic 2: ");
-//     Serial.println(us2Distance);
-// }
+#endif // #ifdef DEBUG
+
+void printUs() {
+    Serial.print("Ultrasonic 1: ");
+    Serial.println(us1Distance);
+    Serial.print("Ultrasonic 2: ");
+    Serial.println(us2Distance);
+}
 
 void changeState(PlayState s) {
     if (playState != s) {
@@ -151,12 +172,13 @@ void decidePlay() {
     static unsigned long ultrasonicTimeSinceLastRead = 0;
 
     // ultrasonic trigger
-    if (millis() - ultrasonicTimeSinceLastRead > 7) {
+    if (millis() - ultrasonicTimeSinceLastRead > 21) {
         // Time taken is too long; override
         usingUltrasonic = false;
         alternateUSTrigger = !alternateUSTrigger;
+        Serial.println("TIMEOUT");
     }
-    if (millis() - ultrasonicTimeSinceLastRead > 4 && !usingUltrasonic) {
+    if (millis() - ultrasonicTimeSinceLastRead > 7 && !usingUltrasonic) {
         // start new ultrasonic read
         trigUltrasonic(alternateUSTrigger ? us1trigPin : us2trigPin);
         ultrasonicTimeSinceLastRead = millis();

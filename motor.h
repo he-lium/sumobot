@@ -4,14 +4,14 @@
 #define MOTOR_H
 
 namespace motor {
-    // Motor A
+    // Motor A: right motor
     const int motorApin1 = 9;
     const int motorApin2 = 8; // Reverse direction
     const int motorAspeed = 4; // PWM ENA
 
-    // Motor B
-    const int motorBpin1 = 6;
-    const int motorBpin2 = 14;  // Reverse direction
+    // Motor B: left motor
+    const int motorBpin1 = 14;
+    const int motorBpin2 = 6;  // Reverse direction
     const int motorBspeed = 5; // PWM ENB
 
     // initialise motors during setup
@@ -53,8 +53,8 @@ namespace motor {
     // Running motor abstractions
     void forwards() { runMotors(1, 1, 140, 140); }
     void reverse() { runMotors(0, 0, 140, 140); }
-    void anticlockwise() { runMotors(0, 1, 140, 140); }
-    void clockwise() { runMotors(1, 0, 140, 140); }
+    void anticlockwise() { runMotors(1, 0, 140, 140); }
+    void clockwise() { runMotors(0, 1, 140, 140); }
 }
 
 #endif
