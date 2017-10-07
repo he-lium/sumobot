@@ -90,13 +90,9 @@ void setup() {
 void loop() {
     // calibrate motors
     motor::forwards();
-    delay(4000);
-    motor::reverse();
-    delay(4000);
-    motor::anticlockwise();
-    delay(4000);
-    motor::clockwise();
-    delay(4000);
+    delay(5000);
+    motor::runMotors(1, 1, 0, 0);
+    delay(3000);
 }
 
 #else
@@ -154,6 +150,7 @@ void changeState(PlayState s) {
     if (playState != s) {
         // state is changed; print state
         playState = s;
+        digitalWrite(internalLED, LOW);
         switch (playState) {
         case search: Serial.println("Search"); break;
         case attack: Serial.println("Attack"); digitalWrite(internalLED, HIGH); break;
@@ -176,7 +173,6 @@ void decidePlay() {
         // Time taken is too long; override
         usingUltrasonic = false;
         alternateUSTrigger = !alternateUSTrigger;
-        Serial.println("TIMEOUT");
     }
     if (millis() - ultrasonicTimeSinceLastRead > 7 && !usingUltrasonic) {
         // start new ultrasonic read
@@ -205,6 +201,8 @@ void decidePlay() {
         Serial.println("Near boundary; reverse");
         playState = reverse;
         reverseTimestamp = millis();
+    } else if (playState == reverse && !ir::nearBoundary) {
+        playState = search;
     }
     
     // Decide motor action
@@ -223,12 +221,6 @@ void decidePlay() {
     case reverse:
         // go back for period of time
         motor::reverse();
-        
-        // if robot has reversed for enough time
-        if (millis() - reverseTimestamp >= maxReverseTime) {
-            Serial.println("stop reverse");
-            playState = search;
-        }
         break;
     }
 

@@ -4,6 +4,8 @@
 #define MOTOR_H
 
 namespace motor {
+    const int defaultSpeed = 150;
+
     // Motor A: right motor
     const int motorApin1 = 9;
     const int motorApin2 = 8; // Reverse direction
@@ -40,6 +42,7 @@ namespace motor {
         analogWrite(motorAspeed, speedA);
 
         // Motor B
+        speedB *= 1.16;
         if (directionB == 1) { // forward
             digitalWrite(motorBpin1, HIGH);
             digitalWrite(motorBpin2, LOW);
@@ -51,10 +54,10 @@ namespace motor {
     }
 
     // Running motor abstractions
-    void forwards() { runMotors(1, 1, 140, 140); }
-    void reverse() { runMotors(0, 0, 140, 140); }
-    void anticlockwise() { runMotors(1, 0, 140, 140); }
-    void clockwise() { runMotors(0, 1, 140, 140); }
+    void forwards() { runMotors(1, 1, defaultSpeed, defaultSpeed); }
+    void reverse() { runMotors(0, 0, defaultSpeed, defaultSpeed); }
+    void anticlockwise() { runMotors(1, 0, defaultSpeed, defaultSpeed); }
+    void clockwise() { runMotors(0, 1, defaultSpeed, defaultSpeed); }
 }
 
 #endif
