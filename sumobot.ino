@@ -42,10 +42,14 @@ const int waitingTime = 3000;
 // state machine
 enum State { off, waiting, playing };
 State state;
-enum PlayState { search, attack, reverse, detectedL, detectedR };
+enum PlayState { search, attack, reverse, detectedL, detectedR, reverseRotate };
 PlayState playState;
 // Timestamp to record when buttons were pressed
 unsigned long startPlayTimestamp;
+// Timestamp to record when rotating after reversing
+unsigned long revRotTimestamp;
+bool revRotDirection;
+const int revRotDuration = 800;
 
 // Timestamp at start of reverse
 unsigned long reverseTimestamp;
@@ -140,10 +144,10 @@ void loop() {
 #endif // #ifdef DEBUG
 
 void printUs() {
-    Serial.print("Ultrasonic 1: ");
-    Serial.println(us1Distance);
-    Serial.print("Ultrasonic 2: ");
-    Serial.println(us2Distance);
+    // Serial.print("Ultrasonic 1: ");
+    // Serial.println(us1Distance);
+    // Serial.print("Ultrasonic 2: ");
+    // Serial.println(us2Distance);
 }
 
 void changeState(PlayState s) {
@@ -157,16 +161,23 @@ void changeState(PlayState s) {
         case reverse: Serial.println("Reverse"); break;
         case detectedL: Serial.println("Detected on left"); break;
         case detectedR: Serial.println("Detected on right"); break;
+        case reverseRotate: 
+            Serial.println("RotateReverse");
+            revRotTimestamp = millis();
+            revRotDirection = millis() % 2 == 0;
+            break;
         }
     }
 }
 
+
+// ultrasonic update counter
+unsigned long currentUs1Read = 0, currentUs2Read = 0;
+// time (millis) since last ultrasonic read
+unsigned long ultrasonicTimeSinceLastRead = 0;
+
 // decide what to do when playing
 void decidePlay() {
-    // ultrasonic update counter
-    static unsigned long currentUs1Read = 0, currentUs2Read = 0;
-    // time (millis) since last ultrasonic read
-    static unsigned long ultrasonicTimeSinceLastRead = 0;
 
     // ultrasonic trigger
     if (millis() - ultrasonicTimeSinceLastRead > 21) {
@@ -199,20 +210,21 @@ void decidePlay() {
     // near boundary: reverse
     if (ir::nearBoundary && playState != reverse) {
         Serial.println("Near boundary; reverse");
-        playState = reverse;
+        changeState(reverse);
         reverseTimestamp = millis();
     } else if (playState == reverse && !ir::nearBoundary) {
-        playState = search;
+        // out of the edge zone; rotate
+        changeState(reverseRotate);
     }
     
     // Decide motor action
     switch(playState) {
-    case search:
     case detectedL:
-        motor::anticlockwise();
+        motor::veerleft();
         break;
     case detectedR:
-        motor::clockwise();
+    case search:
+        motor::veerright();
         break;
     case attack:
         Serial.print("");
@@ -222,10 +234,17 @@ void decidePlay() {
         // go back for period of time
         motor::reverse();
         break;
+    case reverseRotate:
+        if (revRotDirection) motor::anticlockwise();
+        else motor::clockwise();
+        if (millis() - revRotTimestamp > revRotDuration) {
+            changeState(search);
+        }
+        break;
     }
 
     // Decide new state
-    if (playState != reverse) {
+    if (playState != reverse && playState != reverseRotate) {
         bool leftNear = usFilter->isNear(1);
         bool rightNear = usFilter->isNear(2);
         if (leftNear && rightNear) changeState(attack);

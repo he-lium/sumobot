@@ -10,7 +10,7 @@ public:
     void registerNear(int dim);
     void reset();
     bool isNear(int dim) const;
-    const int filterThreshold = 10;
+    const int filterThreshold = 7;
 private:
     int _numDim;
     // Array of (whether ultrasonic detects near)

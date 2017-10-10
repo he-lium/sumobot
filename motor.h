@@ -54,10 +54,12 @@ namespace motor {
     }
 
     // Running motor abstractions
-    void forwards() { runMotors(1, 1, defaultSpeed, defaultSpeed); }
+    void forwards() { runMotors(1, 1, defaultSpeed * 1.4, defaultSpeed * 1.4); }
     void reverse() { runMotors(0, 0, defaultSpeed, defaultSpeed); }
     void anticlockwise() { runMotors(1, 0, defaultSpeed, defaultSpeed); }
     void clockwise() { runMotors(0, 1, defaultSpeed, defaultSpeed); }
+    void veerleft() { runMotors(1, 1, defaultSpeed * 1.3, defaultSpeed * 0.9); }
+    void veerright() { runMotors(1, 1, defaultSpeed * 0.9, defaultSpeed * 1.3); }
 }
 
 #endif
