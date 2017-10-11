@@ -9,7 +9,7 @@
 const int internalLED = 17;
 
 // Push button input
-const int toggleButton = 10;
+const int toggleButton = 20;
 
 // Ultrasonic 1
 const int us1trigPin = 2; // Trigger output
@@ -144,10 +144,10 @@ void loop() {
 #endif // #ifdef DEBUG
 
 void printUs() {
-    // Serial.print("Ultrasonic 1: ");
-    // Serial.println(us1Distance);
-    // Serial.print("Ultrasonic 2: ");
-    // Serial.println(us2Distance);
+    Serial.print("Ultrasonic 1: ");
+    Serial.println(us1Distance);
+    Serial.print("Ultrasonic 2: ");
+    Serial.println(us2Distance);
 }
 
 void changeState(PlayState s) {

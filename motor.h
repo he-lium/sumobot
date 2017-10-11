@@ -9,7 +9,7 @@ namespace motor {
     // Motor A: right motor
     const int motorApin1 = 9;
     const int motorApin2 = 8; // Reverse direction
-    const int motorAspeed = 4; // PWM ENA
+    const int motorAspeed = 10; // PWM ENA
 
     // Motor B: left motor
     const int motorBpin1 = 14;
@@ -59,7 +59,7 @@ namespace motor {
     void anticlockwise() { runMotors(1, 0, defaultSpeed, defaultSpeed); }
     void clockwise() { runMotors(0, 1, defaultSpeed, defaultSpeed); }
     void veerleft() { runMotors(1, 1, defaultSpeed * 1.3, defaultSpeed * 0.9); }
-    void veerright() { runMotors(1, 1, defaultSpeed * 0.9, defaultSpeed * 1.3); }
+    void veerright() { runMotors(1, 1, defaultSpeed * 0.8, defaultSpeed * 1.3); }
 }
 
 #endif
