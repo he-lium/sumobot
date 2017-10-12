@@ -60,6 +60,7 @@ namespace motor {
     void clockwise() { runMotors(0, 1, defaultSpeed, defaultSpeed); }
     void veerleft() { runMotors(1, 1, defaultSpeed * 1.3, defaultSpeed * 0.9); }
     void veerright() { runMotors(1, 1, defaultSpeed * 0.8, defaultSpeed * 1.3); }
+    void stop() { runMotors(1, 1, 0, 0); }
 }
 
 #endif
