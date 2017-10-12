@@ -34,7 +34,7 @@ const int ultrasonicThreshold = 40;
 const int maxValidUltrasonic = 900;
 
 // Time Duration (in millis) of reverse
-const int maxReverseTime = 1500;
+const int minReverseTime = 750;
 
 // Time in millis to wait after button press before playing
 const int waitingTime = 3000;
@@ -49,7 +49,7 @@ unsigned long startPlayTimestamp;
 // Timestamp to record when rotating after reversing
 unsigned long revRotTimestamp;
 bool revRotDirection;
-const int revRotDuration = 800;
+const int revRotDuration = 700;
 
 // Timestamp at start of reverse
 unsigned long reverseTimestamp;
@@ -127,7 +127,7 @@ void loop() {
     case playing:
         // Turn off if button pressed
         if (readToggleButton()) {
-            motor::runMotors(1, 1, 0, 0);
+            motor::stop();
             state = off;
             Serial.println("Stopping game...");
             delay(1000);
@@ -144,6 +144,7 @@ void loop() {
 #endif // #ifdef DEBUG
 
 void printUs() {
+    return;
     Serial.print("Ultrasonic 1: ");
     Serial.println(us1Distance);
     Serial.print("Ultrasonic 2: ");
@@ -208,11 +209,13 @@ void decidePlay() {
     }
 
     // near boundary: reverse
-    if (ir::nearBoundary && playState != reverse) {
+    if (ir::nearBoundary && playState !=
+         reverse) {
         Serial.println("Near boundary; reverse");
         changeState(reverse);
         reverseTimestamp = millis();
-    } else if (playState == reverse && !ir::nearBoundary) {
+    } else if (playState == reverse && !ir::nearBoundary 
+            && millis() - reverseTimestamp >= minReverseTime) {
         // out of the edge zone; rotate
         changeState(reverseRotate);
     }
@@ -220,10 +223,10 @@ void decidePlay() {
     // Decide motor action
     switch(playState) {
     case detectedL:
+    case search:
         motor::veerleft();
         break;
     case detectedR:
-    case search:
         motor::veerright();
         break;
     case attack:
